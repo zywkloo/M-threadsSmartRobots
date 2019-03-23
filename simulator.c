@@ -51,7 +51,7 @@ char canMoveTo(/* PUT PARAMS HERE */) {
 // This code should run indefinitiely.  It should wait for a 
 // client to send a request, process it, and then close the 
 // client connection and wait for another client.  The requests 
-// that may be handlesd are REGISTER and MOVE_TO.   Upon 
+// that may be handled are REGISTER and MOVE_TO.   Upon
 // receiving a REGISTER request, the server should choose a 
 // random location and direction within the environment (which 
 // MUST be within the boundaries and must NOT be overlapping 

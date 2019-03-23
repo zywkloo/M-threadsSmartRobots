@@ -1,13 +1,15 @@
 OPT = -Wall
 
-Exex:	boundaries.o polygonDisplay.o
-	gcc $(OPT) -o  a4  boundaries.o polygonDisplay.o
+All: sim rob stop
 
-boundaries.o:	boundaries.c polygonSet.h polygonDisplay.h
-	gcc $(OPT) -c boundaries.c
+sim:  simulator.c  display.c simulator.h
+	gcc $(OPT) -o sim simulator.c  -lm -lpthread -lX11
 
-polygonDisplay.o:  polygonDisplay.c  polygonDisplay.h polygonSet.h
-	gcc $(OPT) -c polygonDisplay.c
+rob:	robotClient.c simulator.h
+	gcc $(OPT) -o rob robotClient.c  -lm -lpthread
+
+stop:	 stop.c simulator.h
+	gcc $(OPT) -o stop stop.c -lm -lpthread
 
 clean:
-	rm -vf *.o a4
+	rm -vf *.o sim rob stop
