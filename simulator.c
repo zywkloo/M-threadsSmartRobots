@@ -34,7 +34,7 @@ void initializeServer(int *serverSocket,
   }
 
   // Setup the server address
-  memset(&serverAddress, 0, sizeof(serverAddress)); // zeros the struct
+  memset(serverAddress, 0, sizeof(*serverAddress)); // zeros the struct
   serverAddress->sin_family = AF_INET;
   serverAddress->sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddress->sin_port = htons((unsigned short) SERVER_PORT);
@@ -96,11 +96,13 @@ void *handleIncomingRequests(void *e) {
   int                   connectedNum = 0;
   struct sockaddr_in    serverAddress,clientAddr;
   char                  buffer[30];
-  char*                 response = "OK";
-  Environment*          envPtr = (Environment *)e;
+  char*                 response = "Received";
+  Environment*          envPtr = e;
+
   // Initialize the server
   initializeServer( &serverSocket, &serverAddress);
   // Wait for clients now
+
   while (envPtr->shutDown == 0) {
 
     // ... WRITE YOUR CODE HERE ... //
@@ -123,7 +125,7 @@ void *handleIncomingRequests(void *e) {
       // Respond with an "OK" message
       printf("SERVER: Sending \"%s\" to client\n", response);
       send(clientSocket, response, strlen(response), 0);
-      if  (strcmp(buffer,"2") == 0) {
+      if  ( ( (buffer[0]== STOP) && (strlen(buffer) ==1) ) || strcmp(buffer,"done") == 0 ) {
         break;
       }
     }
@@ -131,8 +133,11 @@ void *handleIncomingRequests(void *e) {
     close(clientSocket); // Close this client's socket
 
     // If the client said to stop, then I'll stop myself
-    if (strcmp(buffer,"2") == 0)
+    if ((buffer[0]== STOP) && (strlen(buffer) ==1) ) {
+      envPtr->shutDown = 1;
+      pthread_exit(NULL);
       break;
+    }
   }
 
   // ... WRITE YOUR CLEANUP CODE HERE ... //
@@ -152,14 +157,14 @@ int main() {
   pthread_t ptReqHdl,ptRender;
 
   pthread_create(&ptReqHdl, NULL, handleIncomingRequests, &environment);
-  pthread_create(&ptReqHdl, NULL, redraw, &environment);
-
-  printf("SERVER: ptReqHdl and ptReqHdl created");
+  printf("SERVER: ptReqHdl created.\n");
+  pthread_create(&ptRender, NULL, redraw, &environment);
+  printf("SERVER: ptRender created.\n");
 
   pthread_join(ptReqHdl, NULL);
+  printf("SERVER: ptReqHdl joined.\n");
   pthread_join(ptRender, NULL);
-
-  printf("SERVER: ptReqHdl and ptReqHdl joined");
+  printf("SERVER: ptRender joined.\n");
   
   // Wait for the threads to complete
   
