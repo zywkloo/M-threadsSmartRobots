@@ -25,6 +25,34 @@ Environment    environment;
 void initializeServer(int *serverSocket, 
                       struct sockaddr_in  *serverAddress) {
   // ... WRITE SOME CODE HERE ... //
+  int status;
+  // Create the server socket
+  *serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (*serverSocket < 0) {
+    printf("*** SERVER ERROR: Could not open socket.\n");
+    exit(-1);
+  }
+
+  // Setup the server address
+  memset(&serverAddress, 0, sizeof(serverAddress)); // zeros the struct
+  serverAddress->sin_family = AF_INET;
+  serverAddress->sin_addr.s_addr = htonl(INADDR_ANY);
+  serverAddress->sin_port = htons((unsigned short) SERVER_PORT);
+
+  // Bind the server socket
+  status = bind(*serverSocket,  (struct sockaddr *)serverAddress, sizeof(*serverAddress));
+  if (status < 0) {
+    printf("*** SERVER ERROR: Could not bind socket.\n");
+    exit(-1);
+  }
+
+  // Set up the line-up to handle up to 5 clients in line
+  status = listen(*serverSocket, MAX_ROBOTS);
+  if (status < 0) {
+    printf("*** SERVER ERROR: Could not listen on socket.\n");
+    exit(-1);
+  }
+
 }
 
 
@@ -63,14 +91,48 @@ char canMoveTo(/* PUT PARAMS HERE */) {
 // location).  Parameter *e is a pointer to the environment.
 void *handleIncomingRequests(void *e) {
   // ... ADD SOME VARIABLE HERE... //
-
+  int                   serverSocket,clientSocket;
+  int                   addrSize, bytesRcv;
+  int                   connectedNum = 0;
+  struct sockaddr_in    serverAddress,clientAddr;
+  char                  buffer[30];
+  char*                 response = "OK";
+  Environment*          envPtr = (Environment *)e;
   // Initialize the server
-
+  initializeServer( &serverSocket, &serverAddress);
   // Wait for clients now
-  while (environment.shutDown == 0) {
+  while (envPtr->shutDown == 0) {
 
     // ... WRITE YOUR CODE HERE ... //
+    addrSize = sizeof( clientAddr);
+    clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrSize);
+    if (clientSocket < 0) {
+      printf("*** SERVER ERROR: Could accept incoming client connection.\n");
+      exit(-1);
+    }
+    printf("SERVER: Received client connection.\n");
+    connectedNum++;
 
+    // Go into infinite loop to talk to client
+    while (1) {
+      // Get the message from the client
+      bytesRcv = recv(clientSocket, buffer, sizeof(buffer), 0);
+      buffer[bytesRcv] = 0; // put a 0 at the end so we can display the string
+      printf("SERVER: Received client request: %s\n", buffer);
+
+      // Respond with an "OK" message
+      printf("SERVER: Sending \"%s\" to client\n", response);
+      send(clientSocket, response, strlen(response), 0);
+      if  (strcmp(buffer,"2") == 0) {
+        break;
+      }
+    }
+    printf("SERVER: Closing client connection.\n");
+    close(clientSocket); // Close this client's socket
+
+    // If the client said to stop, then I'll stop myself
+    if (strcmp(buffer,"2") == 0)
+      break;
   }
 
   // ... WRITE YOUR CLEANUP CODE HERE ... //
@@ -85,8 +147,19 @@ int main() {
   // Set up the random seed
   srand(time(NULL));
 
-  // Spawn threads to handle incoming requests and 
+  // Spawn threads to handle incoming requests and
   // update the display
+  pthread_t ptReqHdl,ptRender;
+
+  pthread_create(&ptReqHdl, NULL, handleIncomingRequests, &environment);
+  pthread_create(&ptReqHdl, NULL, redraw, &environment);
+
+  printf("SERVER: ptReqHdl and ptReqHdl created");
+
+  pthread_join(ptReqHdl, NULL);
+  pthread_join(ptRender, NULL);
+
+  printf("SERVER: ptReqHdl and ptReqHdl joined");
   
   // Wait for the threads to complete
   
