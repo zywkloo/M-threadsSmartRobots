@@ -202,6 +202,7 @@ void *handleIncomingRequests(void *e) {
         if (header == OK){
           envPtr->robots[id].x = moveX;
           envPtr->robots[id].y = moveY;
+          envPtr->robots[id].direction = dir;
           // send result response back to client
           // | 00    |
           // |  OK   |
@@ -233,7 +234,7 @@ void *handleIncomingRequests(void *e) {
       break;
     }
   }
-  // ... WRITE YOUR CLEANUP CODE HERE ... //
+  // ...  CLEANUP CODE HERE ... //
   pthread_exit(NULL);
 }
 

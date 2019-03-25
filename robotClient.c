@@ -37,7 +37,6 @@ int connectToServer(int *sock,  struct sockaddr_in *address) {
   if (status < 0) {
     printf("R-CLIENT ERROR: Could not connect.\n");
     return -1;
-    //
   }
   return 1 ;
 }
@@ -45,8 +44,8 @@ int connectToServer(int *sock,  struct sockaddr_in *address) {
 
 int main() {
   // ... ADD SOME VARIABLE HERE ... //
-  int                 clientSocket;
-  struct sockaddr_in  clientAddress;
+  int                  clientSocket;
+  struct sockaddr_in   clientAddress;
   int                  bytesRcv;
   char                 buffer[80];   // stores sent and received data
   // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
@@ -139,8 +138,8 @@ int main() {
     buffer[3]= (unsigned char ) (sendX % 256 ) ;
     buffer[4]= (unsigned char ) (sendY / 256 );
     buffer[5]= (unsigned char ) (sendY % 256 );;
-    buffer[6]= (unsigned char ) absDir ;
-    buffer[7]= (unsigned char ) (dir >=0 ? 1 : 2);
+    buffer[6]= (unsigned char ) absDir ;    //absolute value of direction
+    buffer[7]= (unsigned char ) (dir >=0 ? 1 : 2);//2 means - ; 1 means +
     buffer[8]= 0;
     printf("R-CLIENT: MOVE - Sending status %d \"%s\" to the server.\n",MOVE_TO,buffer);
     printf("        : newX= %f, newY=%f .\n",newX,newY);
