@@ -92,11 +92,12 @@ char canMoveTo(/* PUT PARAMS HERE */) {
 void *handleIncomingRequests(void *e) {
   // ... ADD SOME VARIABLE HERE... //
   int                   serverSocket,clientSocket;
-  int                   addrSize, bytesRcv;
+  unsigned int          addrSize;
+  int                   bytesRcv;
   int                   connectedNum = 0;
   struct sockaddr_in    serverAddress,clientAddr;
-  char                  buffer[30];
-  char*                 response = "Received";
+  unsigned char         buffer[30],response[30];
+  char*                 stopped = "ToBeStopped";
   Environment*          envPtr = e;
 
   // Initialize the server
@@ -113,7 +114,7 @@ void *handleIncomingRequests(void *e) {
       exit(-1);
     }
     printf("SERVER: Received client connection.\n");
-    connectedNum++;
+    connectedNum++;  //todo : clean?
 
     // Go into infinite loop to talk to client
     while (1) {
@@ -122,25 +123,71 @@ void *handleIncomingRequests(void *e) {
       buffer[bytesRcv] = 0; // put a 0 at the end so we can display the string
       printf("SERVER: Received client request: %s\n", buffer);
 
-      // Respond with an "OK" message
-      printf("SERVER: Sending \"%s\" to client\n", response);
-      send(clientSocket, response, strlen(response), 0);
-      if  ( ( (buffer[0]== STOP) && (strlen(buffer) ==1) ) || strcmp(buffer,"done") == 0 ) {
+        //handle STOP request
+      if  (  buffer[0]== STOP ) {
+        printf("SERVER: Sending \"%s\" to client\n", stopped);
+        send(clientSocket, stopped, strlen(stopped), 0);
         break;
+        // handle Robot client registration
+      } else if (buffer[0]== REGISTER) {
+        if (envPtr->numRobots >= MAX_ROBOTS ){
+          // Respond with an "NOT OK" message
+          // |  00   |
+          // | NOTOK |
+          response[0] =  NOT_OK;
+          response[1] = 0;
+          printf("SERVER: Reg - Sending \"%s\" to client\n", response);
+          send(clientSocket, response, 1, 0);
+        } else {
+          printf("SERVER: new robot being created\n");
+          //generate new robot
+          unsigned int iniX = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS;  //generate ini x
+          unsigned int iniY = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS;  //generate ini y
+          int direction = rand()%360 -179;  //generate ini y
+          Robot newRobot = {(float)iniX,(float)iniY, direction};
+          envPtr->robots[envPtr->numRobots]= newRobot;
+
+          printf("SERVER: new robot created at %d,%d. Assembling message\n",iniX,iniY);
+          // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
+          // | OK | ID | Xh | Xl | Yh | Yl | Direction | DirectionSign |
+          printf("%d,%d,%d,%d\n",(iniX / 256 ),(iniX % 256 ),(iniY / 256 ),(iniY % 256 ));
+
+          response[0] =  OK;
+          response[1] = (unsigned char ) (envPtr->numRobots);
+          response[2] = (unsigned char ) (iniX / 256 );
+          response[3] = (unsigned char ) (iniX % 256 );
+          response[4] = (unsigned char ) (iniY / 256 );
+          response[5] = (unsigned char ) (iniY % 256 );
+          response[6] = (unsigned char ) (abs(direction));
+          response[7] = (unsigned char ) (direction >=0 ? 1 : 2);
+          response[8] = 0;
+
+          printf("SERVER: \"%s\" message assembled.\n",response);
+          send(clientSocket, response, 9, 0);
+          //send the response message
+          printf("SERVER: Reg - Sending \"%s\" to client\n", response);
+          printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
+          printf("| OK | %02d |%3d |%3d |%3d |%3d | %02d | %02d |\n",
+                (unsigned int)(response[1]), //id
+                (unsigned int)(response[2]),(unsigned int)(response[3]), //Xh, Xl
+                (unsigned int)(response[4]),(unsigned int)(response[5]), //Yh, Yl
+                (unsigned int)(response[6]),(unsigned int)(response[7]));
+          envPtr->numRobots +=1;
+          break;
+        }
       }
     }
     printf("SERVER: Closing client connection.\n");
     close(clientSocket); // Close this client's socket
 
     // If the client said to stop, then I'll stop myself
-    if ((buffer[0]== STOP) && (strlen(buffer) ==1) ) {
+    if (buffer[0]== STOP ) {
       envPtr->shutDown = 1;
-      pthread_exit(NULL);
       break;
     }
   }
-
   // ... WRITE YOUR CLEANUP CODE HERE ... //
+  pthread_exit(NULL);
 }
 
 
@@ -169,4 +216,6 @@ int main() {
   // Wait for the threads to complete
   
   printf("SERVER: Shutting down.\n");
+
+  return 0;
 }

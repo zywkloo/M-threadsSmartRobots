@@ -42,7 +42,7 @@ int connectToServer(int *sock,  struct sockaddr_in *address) {
 
 
 int main() {
-  // ... ADD SOME VARIABLES HERE ... //
+  // ... ADD SOME VARIABLES  ... //
     int                 clientSocket;
     struct sockaddr_in  clientAddress;
     int                  bytesRcv;
@@ -51,6 +51,7 @@ int main() {
     char                buffer[80];   // stores sent and received data
   // Register with the server
     if (connectToServer(&clientSocket,  &clientAddress) < 0) {
+        printf("S-CLIENT: connection failed.\n");
         exit(-1);
     }
     // Go into loop to commuincate with server now
@@ -61,8 +62,8 @@ int main() {
 
         // Send command string to server
         if ((strcmp(inStr,"stop") == 0) || (strcmp(inStr,"STOP") == 0)) {
-            buffer[0]=(char) STOP;
-            buffer[1]='\0';
+            buffer[0]= STOP;
+            buffer[1]= 0;
             printf("S-CLIENT: Sending \"%s\" to the server.\n",buffer);
             send(clientSocket, buffer, strlen(buffer), 0);
 
