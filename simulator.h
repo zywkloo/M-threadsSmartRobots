@@ -1,7 +1,7 @@
 #define ENV_SIZE          600
 
 #define ROBOT_RADIUS      15   // The radius of the robot
-#define MAX_ROBOTS        2   // Maximum number of robots allowed to connect
+#define MAX_ROBOTS        20   // Maximum number of robots allowed to connect
 #define ROBOT_SPEED        3   // Forward pixels per movement
 #define ROBOT_TURN_ANGLE  15   // degrees to turn for each robot movement
 

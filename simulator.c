@@ -138,6 +138,7 @@ void *handleIncomingRequests(void *e) {
           response[1] = 0;
           printf("SERVER: Reg - Sending \"%s\" to client\n", response);
           send(clientSocket, response, 1, 0);
+          break;
         } else {
           printf("SERVER: new robot being created\n");
           //generate new robot
@@ -147,14 +148,14 @@ void *handleIncomingRequests(void *e) {
           Robot newRobot = {(float)iniX,(float)iniY, direction};
           envPtr->robots[envPtr->numRobots]= newRobot;
 
-          printf("SERVER: new robot created at %d,%d. Assembling message\n",iniX,iniY);
+          printf("SERVER: new robot created at %d,%d.\n",iniX,iniY);
           // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
           // | OK | ID | Xh | Xl | Yh | Yl | Direction | DirectionSign |
-          printf("%d,%d,%d,%d\n",(iniX / 256 ),(iniX % 256 ),(iniY / 256 ),(iniY % 256 ));
+          printf("        X,Y break down: %d,%d,%d,%d\n",(iniX / 256 ),(iniX % 256 ),(iniY / 256 ),(iniY % 256 ));
 
           response[0] =  OK;
           response[1] = (unsigned char ) (envPtr->numRobots);
-          response[2] = (unsigned char ) (iniX / 256 );
+          response[2] = (unsigned char ) (iniX / 256 );  //same effect with（ iniX & 0b1111111100000000）>> 8;
           response[3] = (unsigned char ) (iniX % 256 );
           response[4] = (unsigned char ) (iniY / 256 );
           response[5] = (unsigned char ) (iniY % 256 );

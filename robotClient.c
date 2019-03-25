@@ -49,7 +49,7 @@ int main() {
   int                 clientSocket;
   struct sockaddr_in  clientAddress;
   int                  bytesRcv;
-  char                buffer[80];   // stores sent and received data
+  char                 buffer[80];   // stores sent and received data
   // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
   // | OK | id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
   unsigned char header;
@@ -97,14 +97,14 @@ int main() {
     printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
     printf("| OK | %02u |%3u |%3u |%3u |%3u | %3u | %2u |\n",
            (unsigned int)(buffer[1]), //id
-           (unsigned int)(buffer[2]),( int)(buffer[3] & 0b0000000011111111), //Xh, Xl
-           (unsigned int)(buffer[4]),( int)(buffer[5]), //Yh, Yl
-           (unsigned int)(buffer[6]),(unsigned int)(buffer[7]));
-
+           (unsigned int)(buffer[2]),( int )(buffer[3] & 0b0000000011111111), //Xh, Xl
+           (unsigned int)(buffer[4]),( int )(buffer[5] & 0b0000000011111111), //Yh, Yl
+           (unsigned int)(buffer[6] & 0b0000000011111111),(unsigned int)(buffer[7]));
+    int absDir = (unsigned int)(buffer[6] & 0b0000000011111111);
     id =  (unsigned int)(buffer[1]);
-    curX =  (unsigned int)(buffer[2]) * 256 + (unsigned int)(buffer[3]);
-    curY =  (unsigned int)(buffer[4]) * 256 + (unsigned int)(buffer[5]);
-    dir = ((unsigned int) (buffer[7]) == 2 ) ?  (- (unsigned int) (buffer[6])) : ((unsigned int)(buffer[6]));
+    curX =  (unsigned int)(buffer[2]) * 256 + ( int )(buffer[3] & 0b0000000011111111);
+    curY =  (unsigned int)(buffer[4]) * 256 + ( int )(buffer[5] & 0b0000000011111111);
+    dir = ((unsigned int) (buffer[7]) == 2 ) ?  (- absDir) : (absDir);
     printf("Normalize data \n");
     printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
     printf("| OK | %02d |  %3d    |   %3d   |  %5d  |\n",
@@ -117,11 +117,28 @@ int main() {
   // Go into an infinite loop exhibiting the robot behavior
   while (1) {
     // Connect to the server
-    
+    if (connectToServer(&clientSocket,  &clientAddress) < 0) {
+      printf("R-CLIENT: connection failed.\n");
+      exit(-1);
+    }
     // Compute a forward location and check if it is ok
-        
+    float newX = curX + ROBOT_SPEED*cos(dir);
+    float newY = curY + ROBOT_SPEED*sin(dir);
     // Send MOVE_TO request to server
-    
+    // | 00    | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
+    // |MOVE_TO| id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
+    header = MOVE_TO;
+    buffer[0]= header;
+    buffer[1]= (unsigned char ) id;
+    buffer[2]= id;
+    buffer[3]= id;
+    buffer[4]= id;
+    buffer[5]= id;
+    buffer[6]= (unsigned char ) absDir ;
+    buffer[7]= (unsigned char ) (direction >=0 ? 1 : 2);
+    buffer[8]= 0;
+    printf("R-CLIENT: Now Sending status %d \"%s\" to the server.\n",MOVE_TO,buffer);
+    send(clientSocket, buffer, 9, 0);
     // Get response from server.
 
     // If response is "OK" then move forward
