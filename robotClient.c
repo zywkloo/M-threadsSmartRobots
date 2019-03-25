@@ -54,9 +54,9 @@ int main() {
   // | OK | id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
   unsigned char header;
   int id;
-  unsigned int curX;
-  unsigned int curY;
-  int dir;
+  float curX;
+  float curY;
+  int dir, absDir;
   /**
   unsigned int testInt = 198;
   unsigned char test= (unsigned char)testInt;
@@ -100,14 +100,14 @@ int main() {
            (unsigned int)(buffer[2]),( int )(buffer[3] & 0b0000000011111111), //Xh, Xl
            (unsigned int)(buffer[4]),( int )(buffer[5] & 0b0000000011111111), //Yh, Yl
            (unsigned int)(buffer[6] & 0b0000000011111111),(unsigned int)(buffer[7]));
-    int absDir = (unsigned int)(buffer[6] & 0b0000000011111111);
+    absDir = (unsigned int)(buffer[6] & 0b0000000011111111);
     id =  (unsigned int)(buffer[1]);
-    curX =  (unsigned int)(buffer[2]) * 256 + ( int )(buffer[3] & 0b0000000011111111);
-    curY =  (unsigned int)(buffer[4]) * 256 + ( int )(buffer[5] & 0b0000000011111111);
+    curX =  (int)(buffer[2]& 0b0000000011111111) * 256 + ( int )(buffer[3] & 0b0000000011111111);
+    curY =  (int)(buffer[4]& 0b0000000011111111) * 256 + ( int )(buffer[5] & 0b0000000011111111);
     dir = ((unsigned int) (buffer[7]) == 2 ) ?  (- absDir) : (absDir);
     printf("Normalize data \n");
     printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
-    printf("| OK | %02d |  %3d    |   %3d   |  %5d  |\n",
+    printf("| OK | %02d |  %5.2f    |   %5.2f   |  %5d  |\n",
            id,curX,curY,dir);
   } else {
     printf("R-CLIENT: Err - Received \"%s\" buffer.len \"%lu\".  Data corrupted.\n",buffer,strlen(buffer));
@@ -120,28 +120,46 @@ int main() {
     if (connectToServer(&clientSocket,  &clientAddress) < 0) {
       printf("R-CLIENT: connection failed.\n");
       exit(-1);
+      break;
     }
     // Compute a forward location and check if it is ok
     float newX = curX + ROBOT_SPEED*cos(dir);
     float newY = curY + ROBOT_SPEED*sin(dir);
+    int sendX = (int) (newX * 100);  //amplify the float X coordinates by 100 times.Keep them Int.
+    int sendY = (int) (newY * 100);  //amplify the float Y coordinates by 100 times.Keep them Int.
     // Send MOVE_TO request to server
     // | 00    | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
     // |MOVE_TO| id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
     header = MOVE_TO;
     buffer[0]= header;
     buffer[1]= (unsigned char ) id;
-    buffer[2]= id;
-    buffer[3]= id;
-    buffer[4]= id;
-    buffer[5]= id;
+    buffer[2]= (unsigned char ) (sendX / 256 );  //same effect with（ sendX & 0b1111111100000000）>> 8;;
+    buffer[3]= (unsigned char ) (sendX % 256 ) ;
+    buffer[4]= (unsigned char ) (sendY / 256 );
+    buffer[5]= (unsigned char ) (sendY % 256 );;
     buffer[6]= (unsigned char ) absDir ;
-    buffer[7]= (unsigned char ) (direction >=0 ? 1 : 2);
+    buffer[7]= (unsigned char ) (dir >=0 ? 1 : 2);
     buffer[8]= 0;
-    printf("R-CLIENT: Now Sending status %d \"%s\" to the server.\n",MOVE_TO,buffer);
+    printf("R-CLIENT: MOVE - Sending status %d \"%s\" to the server.\n",MOVE_TO,buffer);
+    printf("        : newX= %f, newY=%f .\n",newX,newY);
     send(clientSocket, buffer, 9, 0);
+    //send the response message
+    printf("|  00   | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
+    printf("|MOVE_TO| %02d |%3d |%3d |%3d |%3d | %02d | %02d |\n",
+           (unsigned int)(buffer[1]), //id
+           (unsigned int)(buffer[2]),(unsigned int)(buffer[3]), //Xh, Xl
+           (unsigned int)(buffer[4]),(unsigned int)(buffer[5]), //Yh, Yl
+           (unsigned int)(buffer[6]),(unsigned int)(buffer[7]));
     // Get response from server.
-
+    bytesRcv = recv(clientSocket, buffer, 80, 0);
     // If response is "OK" then move forward
+    if (buffer[0]== OK){
+      printf("R-CLIENT: MOVE - Response OK from the server.\n");
+      curX = newX;
+      curY = newY;
+    } else {
+      printf("R-CLIENT: MOVE - Response NOT_OK from the server.\n");
+    }
 
     // Otherwise, we could not move forward, so make a turn.
     // If we were turning from the last time we collided, keep
@@ -149,6 +167,6 @@ int main() {
     // direction to start turning.
     
     // Uncomment line below to slow things down a bit 
-    // usleep(1000);
+     usleep(10000);
   }
 }

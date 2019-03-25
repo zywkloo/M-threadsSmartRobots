@@ -62,12 +62,23 @@ void initializeServer(int *serverSocket,
 // location would cause the robot to collide with another robot.
 // Return NOT_OK_BOUNDARY if moving to that location would cause 
 // the robot to go beyond the environmental boundary.
-char canMoveTo(/* PUT PARAMS HERE */) {
+char canMoveTo(float newX, float newY, Environment* envPtr, int id) {
+  int colFlag = 0; // not collided
+  for (int i =0; i< envPtr->numRobots;i++){
+    if(i != id){
+      float xDist = envPtr->robots[i].x - envPtr->robots[id].x;
+      float yDist = envPtr->robots[i].y - envPtr->robots[id].y;
+      float distSquare = powf(xDist,2.0) + powf(yDist,2.0);
+      colFlag = (distSquare > pow(2* ROBOT_RADIUS,2) )? 0:1;
+    }
+  }
 
-
-  // ... WRITE YOUR CODE HERE ... //
-
-
+  if ( colFlag == 1 ){  //if collided
+    return NOT_OK_COLLIDE;
+  } else if ( (newX+ROBOT_RADIUS) >ENV_SIZE || (newX - ROBOT_RADIUS) <0 ||  //if out of bound
+              (newY - ROBOT_RADIUS) <0 ||  (newY - ROBOT_RADIUS)> ENV_SIZE ){
+    return NOT_OK_BOUNDARY;
+  }
   // delay to slow things down
   usleep(10000/(1 + environment.numRobots)); 
   return OK;
@@ -94,7 +105,6 @@ void *handleIncomingRequests(void *e) {
   int                   serverSocket,clientSocket;
   unsigned int          addrSize;
   int                   bytesRcv;
-  int                   connectedNum = 0;
   struct sockaddr_in    serverAddress,clientAddr;
   unsigned char         buffer[30],response[30];
   char*                 stopped = "ToBeStopped";
@@ -106,7 +116,7 @@ void *handleIncomingRequests(void *e) {
 
   while (envPtr->shutDown == 0) {
 
-    // ... WRITE YOUR CODE HERE ... //
+    // ... Listening ... //
     addrSize = sizeof( clientAddr);
     clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrSize);
     if (clientSocket < 0) {
@@ -114,7 +124,6 @@ void *handleIncomingRequests(void *e) {
       exit(-1);
     }
     printf("SERVER: Received client connection.\n");
-    connectedNum++;  //todo : clean?
 
     // Go into infinite loop to talk to client
     while (1) {
@@ -152,7 +161,7 @@ void *handleIncomingRequests(void *e) {
           // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
           // | OK | ID | Xh | Xl | Yh | Yl | Direction | DirectionSign |
           printf("        X,Y break down: %d,%d,%d,%d\n",(iniX / 256 ),(iniX % 256 ),(iniY / 256 ),(iniY % 256 ));
-
+          // assemble the message
           response[0] =  OK;
           response[1] = (unsigned char ) (envPtr->numRobots);
           response[2] = (unsigned char ) (iniX / 256 );  //same effect with（ iniX & 0b1111111100000000）>> 8;
@@ -176,6 +185,38 @@ void *handleIncomingRequests(void *e) {
           envPtr->numRobots +=1;
           break;
         }
+      } else if ( buffer[0]== MOVE_TO ) {  // handle Move
+        // Get MOVE_TO request to server
+        // | 00    | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
+        // |MOVE_TO| id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
+        int absDir = (unsigned int)(buffer[6] & 0b0000000011111111);
+        int id =  (unsigned int)(buffer[1]);
+        int sendX =  (int)(buffer[2]& 0b0000000011111111) * 256 + ( int )(buffer[3] & 0b0000000011111111);
+        int sendY =  (int)(buffer[4]& 0b0000000011111111) * 256 + ( int )(buffer[5] & 0b0000000011111111);
+        float moveX = ((float)sendX)/100;
+        float moveY = ((float)sendY)/100;
+        int dir = ((unsigned int) (buffer[7]) == 2 ) ?  (- absDir) : (absDir);
+        printf("Normalize data \n");
+        printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
+        printf("|MOVE| %02d |  %5f  |   %5f |  %5d  |\n",
+               id,moveX,moveY,dir);
+        int header =  canMoveTo (moveX,moveY,envPtr,id);
+        if (header == OK){
+          envPtr->robots[id].x = moveX;
+          envPtr->robots[id].y = moveY;
+          // send result response back to client
+          // | 00    |
+          // |  OK   |
+          response[0] =  header;
+          response[1] = 0;
+          printf("SERVER: Move OK. \"%s\" move response assembled.\n",response);
+          send(clientSocket, response, 1, 0);
+        } else if (header == NOT_OK_BOUNDARY){
+
+        } else {
+
+        }
+        break; //handled this single request
       }
     }
     printf("SERVER: Closing client connection.\n");
