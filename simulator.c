@@ -80,11 +80,9 @@ char canMoveTo(float newX, float newY, Environment* envPtr, int id) {
     return NOT_OK_BOUNDARY;
   }
   // delay to slow things down
-  usleep(10000/(1 + environment.numRobots)); 
+  usleep(10000/(1 + envPtr->numRobots));
   return OK;
 }
-
-
 
 // Handle client requests coming in through the server socket.  
 // This code should run indefinitiely.  It should wait for a 
@@ -209,13 +207,20 @@ void *handleIncomingRequests(void *e) {
           // |  OK   |
           response[0] =  header;
           response[1] = 0;
-          printf("SERVER: Move OK. \"%s\" move response assembled.\n",response);
+          printf("SERVER: Move OK. \"%s\" move response sent.\n",response);
           send(clientSocket, response, 1, 0);
         } else if (header == NOT_OK_BOUNDARY){
-
+          response[0] =  header;
+          response[1] = 0;
+          printf("SERVER: Move NO_OK_BOUNDARY. \"%s\" move response sent.\n",response);
+          send(clientSocket, response, 1, 0);
         } else {
-
+          response[0] =  header;
+          response[1] = 0;
+          printf("SERVER: Move NOT_OK_COLLIDE. \"%s\" move response sent.\n",response);
+          send(clientSocket, response, 1, 0);
         }
+
         break; //handled this single request
       }
     }

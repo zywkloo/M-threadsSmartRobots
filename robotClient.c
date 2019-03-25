@@ -40,7 +40,6 @@ int connectToServer(int *sock,  struct sockaddr_in *address) {
     //
   }
   return 1 ;
-
 }
 
 
@@ -57,6 +56,7 @@ int main() {
   float curX;
   float curY;
   int dir, absDir;
+  int rotation = -1;  //-1 = not decided, 1 = clockwise , 0 = counter clockwise.
   /**
   unsigned int testInt = 198;
   unsigned char test= (unsigned char)testInt;
@@ -87,6 +87,7 @@ int main() {
     buffer[bytesRcv] = 0; // put a 0 at the end so we can display the string
     printf("R-CLIENT: Robot Exceeds MaxNum. Unable to register.\n");
     exit(-1);
+    //location init;
   } else if (buffer[0]== OK ){  // may contain \0 before the last letter, so don't check len
     buffer[8] = 0; // put a 0 at the end so we can display the string
     printf("R-CLIENT: Got back \"");
@@ -100,6 +101,7 @@ int main() {
            (unsigned int)(buffer[2]),( int )(buffer[3] & 0b0000000011111111), //Xh, Xl
            (unsigned int)(buffer[4]),( int )(buffer[5] & 0b0000000011111111), //Yh, Yl
            (unsigned int)(buffer[6] & 0b0000000011111111),(unsigned int)(buffer[7]));
+    // location init: get data from server , and then assign to client data;
     absDir = (unsigned int)(buffer[6] & 0b0000000011111111);
     id =  (unsigned int)(buffer[1]);
     curX =  (int)(buffer[2]& 0b0000000011111111) * 256 + ( int )(buffer[3] & 0b0000000011111111);
@@ -154,19 +156,29 @@ int main() {
     bytesRcv = recv(clientSocket, buffer, 80, 0);
     // If response is "OK" then move forward
     if (buffer[0]== OK){
-      printf("R-CLIENT: MOVE - Response OK from the server.\n");
+      printf("R-CLIENT: Receive MOVE - Response OK from the server.\n");
       curX = newX;
       curY = newY;
-    } else {
-      printf("R-CLIENT: MOVE - Response NOT_OK from the server.\n");
+      rotation = -1;
+      // Otherwise, we could not move forward, so make a turn.
+      // If we were turning from the last time we collided, keep
+      // turning in the same direction, otherwise choose a random
+      // direction to start turning.
+    } else { //buffer[0]== NOT_OK_COLLIDE or NOT_OK_BOUNDARY
+      printf("R-CLIENT: Receive MOVE - Response NOT_OK from the server.\n");
+      if (rotation == -1){
+        rotation = rand()%2;
+      }
+      if (rotation == 1){
+        dir +=  ROBOT_TURN_ANGLE;
+        if (dir > 180) dir -= 360;
+      } else {
+        dir -=  ROBOT_TURN_ANGLE;
+        if (dir < -179) dir += 360;
+      }
     }
-
-    // Otherwise, we could not move forward, so make a turn.
-    // If we were turning from the last time we collided, keep
-    // turning in the same direction, otherwise choose a random 
-    // direction to start turning.
-    
+    close(clientSocket);  // Don't forget to close the socket !
     // Uncomment line below to slow things down a bit 
-     usleep(10000);
+     usleep(100000);
   }
 }
