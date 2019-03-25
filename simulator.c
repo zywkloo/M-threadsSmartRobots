@@ -66,10 +66,10 @@ char canMoveTo(float newX, float newY, Environment* envPtr, int id) {
   int colFlag = 0; // not collided
   for (int i =0; i< envPtr->numRobots;i++){
     if(i != id){
-      float xDist = envPtr->robots[i].x - envPtr->robots[id].x;
-      float yDist = envPtr->robots[i].y - envPtr->robots[id].y;
+      float xDist = envPtr->robots[i].x - newX;
+      float yDist = envPtr->robots[i].y - newY;
       float distSquare = powf(xDist,2.0) + powf(yDist,2.0);
-      colFlag = (distSquare > pow(2* ROBOT_RADIUS,2) )? 0:1;
+      colFlag = (distSquare > pow(2* ROBOT_RADIUS,2) )? 0:1;  //check the dist between new position and the old
     }
   }
 
@@ -113,8 +113,7 @@ void *handleIncomingRequests(void *e) {
   // Wait for clients now
 
   while (envPtr->shutDown == 0) {
-
-    // ... Listening ... //
+    // ... ready to accept client connection ... //
     addrSize = sizeof( clientAddr);
     clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrSize);
     if (clientSocket < 0) {
@@ -149,8 +148,16 @@ void *handleIncomingRequests(void *e) {
         } else {
           printf("SERVER: new robot being created\n");
           //generate new robot
+
           unsigned int iniX = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS;  //generate ini x
           unsigned int iniY = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS;  //generate ini y
+
+          while ( canMoveTo((float)iniX, (float)iniY, envPtr, envPtr->numRobots) != OK ){  //ensure born places unique
+            iniX = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS; //regenerate ini x
+            iniY = rand()%(ENV_SIZE -2* ROBOT_RADIUS) + ROBOT_RADIUS; //regenerate ini x
+            printf("regenerate new bot\n.");
+          }
+
           int direction = rand()%360 -179;  //generate ini y
           Robot newRobot = {(float)iniX,(float)iniY, direction};
           envPtr->robots[envPtr->numRobots]= newRobot;
@@ -198,11 +205,12 @@ void *handleIncomingRequests(void *e) {
         printf("| 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
         printf("|MOVE| %02d |  %5f  |   %5f |  %5d  |\n",
                id,moveX,moveY,dir);
-        int header =  canMoveTo (moveX,moveY,envPtr,id);
+        char header =  canMoveTo (moveX,moveY,envPtr,id);
         if (header == OK){
           envPtr->robots[id].x = moveX;
           envPtr->robots[id].y = moveY;
           envPtr->robots[id].direction = dir;
+          printf("SEVER: Now Dir %d\n",envPtr->robots[id].direction);
           // send result response back to client
           // | 00    |
           // |  OK   |
@@ -221,7 +229,6 @@ void *handleIncomingRequests(void *e) {
           printf("SERVER: Move NOT_OK_COLLIDE. \"%s\" move response sent.\n",response);
           send(clientSocket, response, 1, 0);
         }
-
         break; //handled this single request
       }
     }

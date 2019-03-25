@@ -11,6 +11,12 @@
 #include "simulator.h"
 
 
+int id;
+float curX;
+float curY;
+int dir, absDir;
+
+
 // Set up a client socket and connect to the server.  
 // Return -1 if there was an error.
 int connectToServer(int *sock,  struct sockaddr_in *address) {
@@ -41,7 +47,6 @@ int connectToServer(int *sock,  struct sockaddr_in *address) {
   return 1 ;
 }
 
-
 int main() {
   // ... ADD SOME VARIABLE HERE ... //
   int                  clientSocket;
@@ -51,16 +56,8 @@ int main() {
   // | 00 | 01 | 02 | 03 | 04 | 05 |    06     |     07        |
   // | OK | id | Xh | Xl | Yh | Yl | Direction | DirectionSign |
   unsigned char header;
-  int id;
-  float curX;
-  float curY;
-  int dir, absDir;
+
   int rotation = -1;  //-1 = not decided, 1 = clockwise , 0 = counter clockwise.
-  /**
-  unsigned int testInt = 198;
-  unsigned char test= (unsigned char)testInt;
-  printf("testInt %d,testInt %c ,convert %d ..",testInt ,test ,(int)test);
-   **/
 
   // Set up the random seed
   srand(time(NULL));
@@ -124,8 +121,8 @@ int main() {
       break;
     }
     // Compute a forward location and check if it is ok
-    float newX = curX + ROBOT_SPEED*cos(dir);
-    float newY = curY + ROBOT_SPEED*sin(dir);
+    float newX = curX + ROBOT_SPEED*cos(dir/180.0*PI);
+    float newY = curY + ROBOT_SPEED*sin(dir/180.0*PI);
     int sendX = (int) (newX * 100);  //amplify the float X coordinates by 100 times.Keep them Int.
     int sendY = (int) (newY * 100);  //amplify the float Y coordinates by 100 times.Keep them Int.
     // Send MOVE_TO request to server
@@ -146,11 +143,11 @@ int main() {
     send(clientSocket, buffer, 9, 0);
     //send the response message
     printf("|  00   | 01 | 02 | 03 | 04 | 05 | 06 | 07 |\n");
-    printf("|MOVE_TO| %02d |%3d |%3d |%3d |%3d | %02d | %02d |\n",
+    printf("|MOVE_TO| %02d |%3u |%3u |%3u |%3u | %02u | %02d |\n",
            (unsigned int)(buffer[1]), //id
-           (unsigned int)(buffer[2]),(unsigned int)(buffer[3]), //Xh, Xl
-           (unsigned int)(buffer[4]),(unsigned int)(buffer[5]), //Yh, Yl
-           (unsigned int)(buffer[6]),(unsigned int)(buffer[7]));
+           ( int)(buffer[2]& 0b0000000011111111),( int)(buffer[3]& 0b0000000011111111), //Xh, Xl
+           ( int)(buffer[4]& 0b0000000011111111),( int)(buffer[5]& 0b0000000011111111), //Yh, Yl
+           ( int)(buffer[6]& 0b0000000011111111),( int)(buffer[7]));
     // Get response from server.
     bytesRcv = recv(clientSocket, buffer, 80, 0);
     // If response is "OK" then move forward
@@ -166,14 +163,16 @@ int main() {
     } else { //buffer[0]== NOT_OK_COLLIDE or NOT_OK_BOUNDARY
       printf("R-CLIENT: Receive MOVE - Response NOT_OK from the server.\n");
       if (rotation == -1){
-        rotation = rand()%2;
+        rotation = (int ) (rand()%2);
       }
       if (rotation == 1){
         dir +=  ROBOT_TURN_ANGLE;
         if (dir > 180) dir -= 360;
+        absDir = abs(dir);
       } else {
         dir -=  ROBOT_TURN_ANGLE;
-        if (dir < -179) dir += 360;
+        if (dir < -180) dir += 360;
+        absDir = abs(dir);
       }
     }
     close(clientSocket);  // Don't forget to close the socket !
