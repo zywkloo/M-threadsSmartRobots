@@ -8,7 +8,7 @@
     <p>  & ./simulator </p>
   *  Run robot client:   
     <p>  & ./robotClient </p>
-  *  Run stoper client:  Input stop to shut server down. 
+  *  Run stopper client:  Input stop to shut server down. 
     <p>  & ./stop  </p>
 
  </div>
