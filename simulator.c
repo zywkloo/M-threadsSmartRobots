@@ -24,7 +24,7 @@ Environment    environment;
 // number of robot clients
 void initializeServer(int *serverSocket, 
                       struct sockaddr_in  *serverAddress) {
-  // ... WRITE SOME CODE HERE ... //
+  // ... Customized code ... //
   int status;
   // Create the server socket
   *serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -99,7 +99,7 @@ char canMoveTo(float newX, float newY, Environment* envPtr, int id) {
 // robot would collide with another robot at the requested 
 // location).  Parameter *e is a pointer to the environment.
 void *handleIncomingRequests(void *e) {
-  // ... ADD SOME VARIABLE HERE... //
+  // ... Customized code ... //
   int                   serverSocket,clientSocket;
   unsigned int          addrSize;
   int                   bytesRcv;
